@@ -1,147 +1,601 @@
-import { View, Text, StyleSheet, Image, ScrollView, SectionList, Pressable} from "react-native";
+import { useState, useEffect } from "react";
+import { router } from "expo-router";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  Image,
+  TextInput,
+  FlatList,
+  SectionList,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { API_URL } from "@/constants/api";
+import { colors, radii } from "@/constants/theme";
 
-export default function MyApp() {
-    const FEATURED_BOOKS = [
-      { id: "1", title: "Đắc Nhân Tâm", author: "Dale Carnegie", price: "86.000đ", image: "https://picsum.photos/200/300?random=1" },
-      { id: "2", title: "Nhà Giả Kim", author: "Paulo Coelho", price: "79.000đ", image: "https://picsum.photos/200/300?random=2" },
-      { id: "3", title: "Tư Duy Nhanh Và Chậm", author: "Daniel Kahneman", price: "150.000đ", image: "https://picsum.photos/200/300?random=3" },
-      { id: "4", title: "Đọc Bất Kỳ Ai", author: "David J. Lieberman", price: "95.000đ", image: "https://picsum.photos/200/300?random=5" },
-      { id: "5", title: "Thép Đã Tôi Thế Đấy", author: "Nikolai Ostrovsky", price: "110.000đ", image: "https://picsum.photos/200/300?random=6" },
-      { id: "6", title: "Re:Zero Vol 1", author: "Tappei Nagatsuki", price: "105.000đ", image: "https://picsum.photos/200/300?random=7" },
-      { id: "7", title: "Tôi Không Có Miệng Và Tôi Phải Hét", author: "Harlan Ellison", price: "85.000đ", image: "https://picsum.photos/200/300?random=8" },
-    ];
-
-
-    return (
-        <SafeAreaView>
-          <View style = {styles.header}>
-            <Image
-              source={require('../../assets/images/icon.png')}
-              style = {styles.avatar}
-            />
-            <View><Text style = {styles.titles}>TRANG WEB BÁN SÁCH</Text></View>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <View style = {styles.bannerContainer}>
-              <Text style = {styles.titles}>Sách nổi bật</Text>
-              <Pressable style = {styles.iconButton} onPress={() => alert('Mở thông báo!')}>
-                <Text style ={{fontSize: 20}}>🔔</Text>
-              </Pressable>
-            </View>
-            <View>
-              <Text style = {styles.containerTitle}>Nơi bán sách uy tín hàng đầu Việt Nam. Cam kết chất lượng. Giá cả cạnh tranh!</Text>
-            </View>
-            <View style = {styles.sectionContainer}>
-              <SectionList
-                scrollEnabled={false}
-                sections={[
-                  { data: FEATURED_BOOKS },
-                ]}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <View style = {styles.listItem}>
-                    <Image source={{ uri: item.image }} style = {styles.listItemImage} />
-                    <View style = {styles.listItemInfo}>
-                      <Text style = {styles.bookTitle}>{item.title}</Text>
-                      <Text style = {styles.bookAuthor}>{item.author}</Text>
-                      <Text style = {styles.bookPrice}>{item.price}</Text>
-                    </View>
-                    <Pressable style = {styles.button} onPress={() => alert('Hiện chưa có!')}>
-                      <Text style = {{color: '#FFFFFF'}}>Thông tin chi tiết</Text>
-                    </Pressable>
-                  </View>
-                )}
-              />
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-    )
+export interface Book {
+  id: number;
+  title: string;
+  author: string;
+  category: string;
+  description: string;
+  coverColor: string;
+  image: string;
 }
 
-const styles = StyleSheet.create ({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-  },
+export default function HomeScreen() {
+  const categories = [
+    "Tiểu thuyết",
+    "Kỹ năng sống",
+    "Tâm lý",
+    "Phát triển bản thân",
+    "Light Novel",
+  ];
+
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
+
+  // Hàm gọi API lấy danh sách sách từ Laravel
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_URL}/books`, {
+          headers: { Accept: "application/json" },
+        });
+        const result = await response.json();
+
+        if (result.status === "success") {
+          setBooks(result.data);
+        }
+      } catch (error) {
+        console.error("Lỗi kết nối API:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBooks();
+  }, []);
+
+  const filteredBooks = books.filter((book) =>
+    book.title.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+  );
+
+  const sectionData = [
+    {
+      title: selectedCategory,
+      data: books.filter((book) => book.category === selectedCategory),
+    },
+  ];
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.moss} />
+        <Text style={styles.loadingText}>Đang tải dữ liệu từ server...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.content}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.logo}>
+              <Text style={styles.logoText}>M</Text>
+            </View>
+            <View>
+              <Text style={styles.greeting}>Chào mừng bạn đến với</Text>
+              <Text style={styles.brand}>Mộc Thư</Text>
+            </View>
+          </View>
+
+          <Pressable
+            style={styles.searchToggleButton}
+            onPress={() => {
+              setShowSearch(!showSearch);
+              if (showSearch) setSearchQuery("");
+            }}
+          >
+            <Text style={styles.searchToggleText}>
+              {showSearch ? "✕" : "🔍"}
+            </Text>
+          </Pressable>
+        </View>
+
+        {showSearch && (
+          <View style={styles.searchSection}>
+            <View style={styles.searchInputContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Nhập tên sách..."
+                placeholderTextColor={colors.inkSoft}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+              <Pressable style={styles.advancedSearchButton} onPress={() => {}}>
+                <Text style={styles.advancedSearchText}>Tìm kiếm nâng cao</Text>
+              </Pressable>
+            </View>
+
+            {searchQuery.trim().length > 0 && (
+              <View style={styles.searchResults}>
+                <Text style={styles.searchResultsTitle}>
+                  Kết quả tìm kiếm ({filteredBooks.length}):
+                </Text>
+                {filteredBooks.length > 0 ? (
+                  filteredBooks.map((book) => (
+                    <Pressable
+                      key={book.id}
+                      style={styles.searchResultItem}
+                      onPress={() => router.push(`/book-detail/${book.id}`)}
+                    >
+                      <Image
+                        source={{ uri: book.image }}
+                        style={styles.searchResultImage}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.searchResultInfo}>
+                        <Text
+                          style={styles.searchResultTitle}
+                          numberOfLines={1}
+                        >
+                          {book.title}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))
+                ) : (
+                  <Text style={styles.noResultsText}>
+                    Không tìm thấy sách phù hợp.
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Banner */}
+        <View style={styles.banner}>
+          <Text style={styles.bannerTitle}>
+            Khám phá thế giới{"\n"}qua từng trang sách.
+          </Text>
+          <Text style={styles.bannerText}>
+            Đọc những câu chuyện truyền cảm hứng mỗi ngày.
+          </Text>
+        </View>
+
+        {/* Đọc gần đây */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Đọc gần đây</Text>
+        </View>
+
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={books.slice(0, 3)}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.bookList}
+          renderItem={({ item: book }) => (
+            <Pressable
+              style={styles.bookCard}
+              onPress={() => router.push(`/book-detail/${book.id}`)}
+            >
+              <View
+                style={[styles.bookCover, { backgroundColor: book.coverColor }]}
+              >
+                <Image
+                  source={{ uri: book.image }}
+                  style={styles.bookImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={styles.bookTitle} numberOfLines={2}>
+                {book.title}
+              </Text>
+              <Text style={styles.author}>{book.author}</Text>
+            </Pressable>
+          )}
+        />
+
+        {/* Sách mới nhất */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Sách mới nhất</Text>
+          <Pressable onPress={() => router.push("/(tabs)/books")}>
+            <Text style={styles.seeAll}>Xem tất cả</Text>
+          </Pressable>
+        </View>
+
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={books.slice(0, 5)}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.bookList}
+          renderItem={({ item: book }) => (
+            <Pressable
+              key={book.id}
+              style={styles.bookCard}
+              onPress={() => router.push(`/book-detail/${book.id}`)}
+            >
+              <View
+                style={[styles.bookCover, { backgroundColor: book.coverColor }]}
+              >
+                <Image
+                  source={{ uri: book.image }}
+                  style={styles.bookImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={styles.bookTitle} numberOfLines={1}>
+                {book.title}
+              </Text>
+              <Text style={styles.author} numberOfLines={1}>
+                {book.author}
+              </Text>
+            </Pressable>
+          )}
+        />
+
+        {/* Danh mục */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Danh mục sách</Text>
+          <Pressable onPress={() => router.push("/(tabs)/categories")}>
+            <Text style={styles.seeAll}>Xem thêm</Text>
+          </Pressable>
+        </View>
+
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={categories}
+          keyExtractor={(item) => item}
+          contentContainerStyle={styles.categoryList}
+          renderItem={({ item: category }) => {
+            const isSelected = category === selectedCategory;
+            return (
+              <Pressable
+                style={[
+                  styles.categoryItem,
+                  isSelected && styles.categoryItemSelected,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text
+                  style={[
+                    styles.categoryText,
+                    isSelected && styles.categoryTextSelected,
+                  ]}
+                >
+                  {category}
+                </Text>
+              </Pressable>
+            );
+          }}
+        />
+
+        <SectionList
+          scrollEnabled={false}
+          sections={sectionData}
+          keyExtractor={(item) => item.id.toString()}
+          style={styles.sectionListContainer}
+          renderSectionHeader={({ section: { title } }) => (
+            <Text style={styles.sectionListHeader}>
+              Danh mục: {title} ({sectionData[0].data.length} sách)
+            </Text>
+          )}
+          renderItem={({ item: book }) => (
+            <Pressable
+              key={book.id}
+              style={styles.sectionBookItem}
+              onPress={() => router.push(`/book-detail/${book.id}`)}
+            >
+              <Image
+                source={{ uri: book.image }}
+                style={styles.sectionBookImage}
+                resizeMode="cover"
+              />
+              <View style={styles.sectionBookInfo}>
+                <Text style={styles.sectionBookTitle}>{book.title}</Text>
+                <Text style={styles.sectionBookAuthor}>{book.author}</Text>
+                <Text style={styles.sectionBookDesc} numberOfLines={2}>
+                  {book.description}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+        />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
   container: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    flex: 1,
   },
-  containerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    paddingHorizontal: 20,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.paper,
   },
-  sectionContainer: {
-    paddingHorizontal: 15,
-    marginBottom: 15,
+  loadingText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: colors.inkSoft,
   },
-  bannerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    margin: 15,
-    borderRadius: 10,
+  content: {
+    padding: 24,
+    paddingBottom: 40,
+    backgroundColor: colors.paper,
   },
-  titles: {
-    fontSize: 21,
-    fontWeight: 'bold',
-    color: 'blue',
-  },
-  bookAuthor: {
-    fontSize: 12,
-    color: "#777",
-    marginVertical: 2,
-  },
-  avatar: {
-    //marginTop: 100,
-    width: 50,
-    height: 50,
-    borderRadius: 100,
-  },
-  iconButton: {
-    width: 30,
-    height: 30,
-  },
-  listItem: {
+  header: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 25,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    gap: 12,
     alignItems: "center",
   },
-  listItemImage: {
-    width: 60,
-    height: 80,
-    borderRadius: 4,
+  greeting: {
+    color: colors.inkSoft,
+    fontSize: 13,
   },
-  listItemInfo: {
-    flex: 1,
-    marginLeft: 14,
+  brand: {
+    color: colors.ink,
+    fontFamily: "serif",
+    fontSize: 28,
+    fontWeight: "700",
+    marginTop: 1,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.moss,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoText: {
+    color: colors.gold,
+    fontFamily: "serif",
+    fontSize: 23,
+    fontWeight: "800",
+  },
+  banner: {
+    backgroundColor: colors.moss,
+    borderRadius: radii.lg,
+    padding: 22,
+    marginBottom: 30,
+  },
+  bannerTitle: {
+    color: colors.white,
+    fontFamily: "serif",
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: "700",
+  },
+  bannerText: {
+    color: "#E5ECE3",
+    fontSize: 13,
+    marginTop: 10,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 2,
+    borderColor: colors.border,
+    marginBottom: 15,
+    paddingTop: 10,
+  },
+  sectionTitle: {
+    color: colors.ink,
+    fontFamily: "serif",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  seeAll: {
+    color: colors.moss,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  bookList: {
+    gap: 15,
+    paddingBottom: 30,
+  },
+  bookCard: {
+    width: 130,
+  },
+  bookImage: {
+    width: 121,
+    height: 168,
+    borderRadius: 12,
+  },
+  bookCover: {
+    width: 130,
+    height: 180,
+    borderRadius: 12,
+    padding: 5,
+    justifyContent: "flex-end",
+    marginBottom: 8,
   },
   bookTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  bookPrice: {
+    color: colors.ink,
     fontSize: 13,
-    fontWeight: "bold",
-    color: "#E53935",
-    marginBottom: 6,
+    fontWeight: "700",
   },
-  button: {
-    backgroundColor: "#1E88E5",
-    padding: 6,
-    borderRadius: 4,
+  author: {
+    color: colors.inkSoft,
+    fontSize: 11,
+    marginTop: 4,
   },
-})
+  categoryList: {
+    gap: 5,
+    paddingBottom: 15,
+  },
+  categoryItem: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  categoryItemSelected: {
+    backgroundColor: colors.moss,
+    borderColor: colors.moss,
+  },
+  categoryText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  categoryTextSelected: {
+    color: colors.white,
+  },
+  sectionListContainer: {
+    marginBottom: 40,
+  },
+  sectionListHeader: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.moss,
+    marginBottom: 12,
+    marginTop: 5,
+  },
+  sectionBookItem: {
+    flexDirection: "row",
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sectionBookImage: {
+    width: 60,
+    height: 85,
+    borderRadius: 8,
+  },
+  sectionBookInfo: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: "center",
+  },
+  sectionBookTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  sectionBookAuthor: {
+    fontSize: 12,
+    color: colors.inkSoft,
+    marginTop: 2,
+  },
+  sectionBookDesc: {
+    fontSize: 11,
+    color: colors.inkSoft,
+    marginTop: 4,
+  },
+  searchToggleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchToggleText: {
+    fontSize: 18,
+    color: colors.ink,
+  },
+  searchSection: {
+    marginBottom: 20,
+  },
+  searchInputContainer: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.ink,
+  },
+  advancedSearchButton: {
+    backgroundColor: colors.moss,
+    borderRadius: radii.md,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    justifyContent: "center",
+  },
+  advancedSearchText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  searchResults: {
+    marginTop: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchResultsTitle: {
+    fontSize: 12,
+    color: colors.inkSoft,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  searchResultItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchResultImage: {
+    width: 40,
+    height: 55,
+    borderRadius: 6,
+  },
+  searchResultInfo: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  searchResultTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.ink,
+  },
+  noResultsText: {
+    fontSize: 13,
+    color: colors.inkSoft,
+    fontStyle: "italic",
+    paddingVertical: 6,
+  },
+});
