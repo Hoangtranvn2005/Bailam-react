@@ -10,18 +10,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 
-import { API_URL } from "@/constants/api";
 import { colors, radii } from "@/constants/theme";
-
-export interface Book {
-  id: number;
-  title: string;
-  author: string;
-  category: string;
-  description: string;
-  coverColor: string;
-  image: string;
-}
+import { API_URL, Book } from "../../Services/book-services";
 
 export default function BookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

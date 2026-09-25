@@ -1,14 +1,10 @@
 import { router } from "expo-router";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View, ActivityIndicator } from "react-native";
 
-import { books } from "@/constants/books";
 import { colors, radii } from "@/constants/theme";
+import { API_URL } from "@/Services/book-services";
+import type { Book } from "@/Services/book-services";
 
 const categories = [
   "Tiểu thuyết",
@@ -21,11 +17,42 @@ const categories = [
 ];
 
 export default function CategoriesScreen() {
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_URL}/books`, {
+          headers: {
+            Accept: "application/json",
+          },
+        });
+        const result = await response.json();
+
+        if (result.status === "success") {
+          setBooks(result.data); // Gán dữ liệu trả về từ Laravel vào state
+        }
+      } catch (error) {
+        console.error("Lỗi kết nối API:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBooks();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.moss} />
+        <Text style={styles.loadingText}>Đang tải dữ liệu từ server...</Text>
+      </View>
+    );
+  }
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={styles.logo}>
           <Text style={styles.iconText}>M</Text>
@@ -33,43 +60,32 @@ export default function CategoriesScreen() {
         <Text style={styles.title}>Danh mục sách</Text>
       </View>
 
-      <Text style={styles.subtitle}>
-        Lựa chọn thể loại sách yêu thích.
-      </Text>
-
-      <Pressable
-        onPress={() => router.push("/")}
-        style={styles.backButton}
-      >
-        <Text style={styles.backText}>‹ Quay lại</Text>
-      </Pressable>
+      <Text style={styles.subtitle}>Lựa chọn thể loại sách yêu thích.</Text>
 
       <View style={styles.grid}>
         {categories.map((category) => {
           const count = books.filter(
-            (book) => book.category === category
+            (book) => book.category === category,
           ).length;
 
           return (
             <Pressable
               key={category}
               style={styles.card}
-              onPress={() => router.push({
-                pathname: "/(tabs)/books",
-                params: { category },
-              })}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/categories/category",
+                  params: { category },
+                })
+              }
             >
               <View style={styles.icon}>
                 <Text style={styles.iconText}>{category.charAt(0)}</Text>
               </View>
 
-              <Text style={styles.categoryName}>
-                {category}
-              </Text>
+              <Text style={styles.categoryName}>{category}</Text>
 
-              <Text style={styles.count}>
-                {count} cuốn sách
-              </Text>
+              <Text style={styles.count}>{count} cuốn sách</Text>
             </Pressable>
           );
         })}
@@ -82,6 +98,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.paper,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.paper,
+  },
+
+  loadingText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: colors.inkSoft,
   },
 
   header: {

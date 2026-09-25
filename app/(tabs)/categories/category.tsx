@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 
-import { colors, radii } from "@/constants/theme";
 import { API_URL, Book } from "@/Services/book-services";
+import { colors, radii } from "@/constants/theme";
 
 export default function BooksScreen() {
   // Lấy tham số category từ URL (nếu có)
@@ -53,7 +53,8 @@ export default function BooksScreen() {
     );
   }
 
-  const filteredBooks = books;
+  // Lọc danh sách sách theo danh mục (nếu có chọn)
+  const filteredBooks = books.filter((book) => book.category === category);
 
   return (
     <ScrollView
@@ -65,7 +66,7 @@ export default function BooksScreen() {
         <View style={styles.logo}>
           <Text style={styles.logoText}>M</Text>
         </View>
-        <Text style={styles.title}>Danh sách sách</Text>
+        <Text style={styles.title}>Danh sách {category}</Text>
       </View>
 
       <Text style={styles.subtitle}>
@@ -73,6 +74,10 @@ export default function BooksScreen() {
           ? `Các cuốn sách thuộc thể loại ${category}.`
           : "Tất cả những cuốn sách dành cho bạn."}
       </Text>
+
+      {/* <Pressable onPress={() => router.canGoBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Quay lại</Text>
+      </Pressable> */}
 
       {filteredBooks.map((book) => (
         <Pressable
@@ -103,6 +108,14 @@ export default function BooksScreen() {
           </View>
         </Pressable>
       ))}
+
+      {filteredBooks.length === 0 && (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyTtitle}>
+            Chưa có sách nào thuộc danh mục này.
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }

@@ -13,18 +13,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { API_URL } from "@/constants/api";
 import { colors, radii } from "@/constants/theme";
-
-export interface Book {
-  id: number;
-  title: string;
-  author: string;
-  category: string;
-  description: string;
-  coverColor: string;
-  image: string;
-}
+import { API_URL, Book } from "@/Services/book-services";
 
 export default function HomeScreen() {
   const categories = [
@@ -243,6 +233,44 @@ export default function HomeScreen() {
               <Text style={styles.author} numberOfLines={1}>
                 {book.author}
               </Text>
+            </Pressable>
+          )}
+        />
+
+        {/* Sách thịnh hành */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Thịnh hành</Text>
+
+          <Pressable onPress={() => router.push("/books")}>
+            <Text style={styles.seeAll}>Xem tất cả</Text>
+          </Pressable>
+        </View>
+
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={books.slice(4, 8)}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.bookList}
+          renderItem={({ item: book }) => (
+            <Pressable
+              key={book.id}
+              style={styles.bookCard}
+              onPress={() => router.push(`/book-detail/${book.id}`)}
+            >
+              <View
+                style={[styles.bookCover, { backgroundColor: book.coverColor }]}
+              >
+                <Image
+                  source={{ uri: book.image }}
+                  style={styles.bookImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={styles.bookTitle} numberOfLines={2}>
+                {book.title}
+              </Text>
+              <Text style={styles.author}>{book.author}</Text>
             </Pressable>
           )}
         />
